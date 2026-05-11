@@ -1,0 +1,148 @@
+name: Terraform Plan Report (reusable)
+
+# Reusable workflow. Consumers call it from their own repo:
+#
+#   jobs:
+#     plan:
+#       uses: Jinssi/terraformer/.github/workflows/terraform-plan.yml@v1
+#       with:
+#         working-directory: infra
+#       permissions:
+#         contents: read
+#         id-token: write
+#         pull-requests: write
+#         models: read
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Path to the Terraform root module."
+        type: string
+        default: "."
+      terraform-version:
+        description: "Terraform version to install."
+        type: string
+        default: "latest"
+      ai:
+        description: "Include LLM narrative section."
+        type: boolean
+        default: true
+      ai-backend:
+        description: "LLM backend: github_models | azure_openai | none."
+        type: string
+        default: github_models
+      tfreport-ref:
+        description: "tfreport git ref (tag/branch/SHA) for action + package."
+        type: string
+        default: "main"
+      use-azure-login:
+        description: "Run azure/login@v2 with OIDC before plan."
+        type: boolean
+        default: true
+      sticky-comment:
+        description: "Post a sticky PR comment with the report (PR events only)."
+        type: boolean
+        default: true
+      config:
+        description: "Path (relative to repo root) to a .tfreport config file. Empty = auto-discover."
+        type: string
+        default: ""
+      baseline-artifact:
+        description: "Name of an artifact (in this repo) containing a previous plan_summary.json to use as baseline."
+        type: string
+        default: ""
+      cost-json:
+        description: "Path to an Infracost breakdown JSON file (if produced by an earlier step)."
+        type: string
+        default: ""
+      heading:
+        description: "Optional H2 heading prepended to the report (e.g. stack name)."
+        type: string
+        default: ""
+      install-extras:
+        description: "pip extras to install (e.g. 'full' for YAML config support)."
+        type: string
+        default: ""
+
+jobs:
+  plan:
+    name: terraform plan + report
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+      models: read
+    env:
+      TF_IN_AUTOMATION: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+
+      - name: Azure login (OIDC)
+        if: ${{ inputs.use-azure-login && vars.AZURE_CLIENT_ID != '' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init
+        working-directory: ${{ inputs.working-directory }}
+        run: terraform init -input=false -no-color
+
+      - name: Terraform plan
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          set -o pipefail
+          terraform plan -input=false -no-color -out=tfplan | tee plan.txt
+          terraform show -json tfplan > plan.json
+
+      - name: Download baseline plan summary
+        if: ${{ inputs.baseline-artifact != '' }}
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.baseline-artifact }}
+          path: .tfreport-baseline
+
+      - name: Generate plan report
+        uses: Jinssi/terraformer@${{ inputs.tfreport-ref }}
+        with:
+          mode: plan
+          plan-json: ${{ inputs.working-directory }}/plan.json
+          out: plan_summary.md
+          json-out: plan_summary.json
+          ai: ${{ inputs.ai }}
+          ai-backend: ${{ inputs.ai-backend }}
+          ref: ${{ inputs.tfreport-ref }}
+          install-extras: ${{ inputs.install-extras }}
+          config: ${{ inputs.config }}
+          baseline: ${{ inputs.baseline-artifact != '' && '.tfreport-baseline/plan_summary.json' || '' }}
+          cost-json: ${{ inputs.cost-json }}
+          heading: ${{ inputs.heading }}
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-report
+          path: |
+            plan_summary.md
+            plan_summary.json
+            ${{ inputs.working-directory }}/plan.json
+            ${{ inputs.working-directory }}/plan.txt
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Sticky PR comment
+        if: ${{ inputs.sticky-comment && github.event_name == 'pull_request' && always() }}
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: terraform-plan
+          path: plan_summary.md

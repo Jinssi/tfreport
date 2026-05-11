@@ -1,0 +1,25 @@
+# GitLab CI example using tfreport from PyPI.
+
+stages: [plan]
+
+terraform-plan:
+  stage: plan
+  image: hashicorp/terraform:latest
+  variables:
+    WORKDIR: infra
+  before_script:
+    - apk add --no-cache python3 py3-pip
+    - pip3 install --break-system-packages tfreport
+  script:
+    - cd "$WORKDIR" && terraform init -input=false -no-color
+    - terraform plan -input=false -no-color -out=tfplan
+    - terraform show -json tfplan > plan.json
+    - cd ..
+    - tf-report-plan "$WORKDIR/plan.json" --out plan_summary.md --json-out plan_summary.json
+  artifacts:
+    paths:
+      - plan_summary.md
+      - plan_summary.json
+    expire_in: 30 days
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"

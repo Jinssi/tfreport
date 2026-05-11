@@ -1,0 +1,13 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "resource_changes": [
+    {
+      "address": "azurerm_resource_group.this",
+      "type": "azurerm_resource_group",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": { "actions": ["no-op"] }
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "resource_changes": [
+    {
+      "address": "module.networking.azurerm_virtual_network.hub",
+      "type": "azurerm_virtual_network",
+      "name": "hub",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["update"],
+        "before": {"name": "hub", "tags": {"env": "dev"}, "address_space": ["10.0.0.0/16"]},
+        "after":  {"name": "hub", "tags": {"env": "prod"}, "address_space": ["10.0.0.0/16"]}
+      }
+    },
+    {
+      "address": "module.networking.azurerm_subnet.app",
+      "type": "azurerm_subnet",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["delete", "create"],
+        "replace_paths": [["address_prefixes"]],
+        "before": {"address_prefixes": ["10.0.1.0/24"]},
+        "after":  {"address_prefixes": ["10.0.2.0/24"]}
+      }
+    },
+    {
+      "address": "azurerm_resource_group.this",
+      "type": "azurerm_resource_group",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["update"],
+        "before": {"name": "rg-1", "tags": {"env": "dev"}},
+        "after":  {"name": "rg-1", "tags": {"env": "prod"}}
+      }
+    }
+  ]
+}

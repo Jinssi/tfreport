@@ -1,0 +1,162 @@
+name: Terraform Apply Report (reusable)
+
+# Reusable workflow. Consumers call it from their own repo:
+#
+#   jobs:
+#     apply:
+#       uses: Jinssi/terraformer/.github/workflows/terraform-apply.yml@v1
+#       with:
+#         working-directory: infra
+#         environment: production
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Path to the Terraform root module."
+        type: string
+        default: "."
+      terraform-version:
+        type: string
+        default: "latest"
+      environment:
+        description: "GitHub environment to gate the apply (protection rules go here)."
+        type: string
+        default: "production"
+      tfreport-ref:
+        type: string
+        default: "main"
+      use-azure-login:
+        type: boolean
+        default: true
+      record-history-on-failure:
+        description: "Commit a dated entry to reports/apply-history.md when apply fails."
+        type: boolean
+        default: true
+      config:
+        description: "Path to a .tfreport config file. Empty = auto-discover."
+        type: string
+        default: ""
+      heading:
+        description: "Optional H2 heading prepended to the plan report."
+        type: string
+        default: ""
+      install-extras:
+        description: "pip extras to install (e.g. 'full' for YAML config support)."
+        type: string
+        default: ""
+
+jobs:
+  apply:
+    name: terraform apply + report
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      TF_IN_AUTOMATION: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+
+      - name: Azure login (OIDC)
+        if: ${{ inputs.use-azure-login && vars.AZURE_CLIENT_ID != '' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init
+        working-directory: ${{ inputs.working-directory }}
+        run: terraform init -input=false -no-color
+
+      - name: Terraform plan (for diff context)
+        working-directory: ${{ inputs.working-directory }}
+        run: |
+          set -o pipefail
+          terraform plan -input=false -no-color -out=tfplan
+          terraform show -json tfplan > plan.json
+
+      - name: Pre-apply plan summary
+        uses: Jinssi/terraformer@${{ inputs.tfreport-ref }}
+        with:
+          mode: plan
+          plan-json: ${{ inputs.working-directory }}/plan.json
+          out: plan_summary.md
+          json-out: plan_summary.json
+          ai: "false"
+          ref: ${{ inputs.tfreport-ref }}
+          install-extras: ${{ inputs.install-extras }}
+          config: ${{ inputs.config }}
+          heading: ${{ inputs.heading }}
+
+      - name: Terraform apply
+        id: apply
+        working-directory: ${{ inputs.working-directory }}
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          terraform apply -input=false -no-color -auto-approve tfplan 2>&1 | tee apply.log
+
+      - name: Apply summary
+        if: always()
+        uses: Jinssi/terraformer@${{ inputs.tfreport-ref }}
+        with:
+          mode: apply
+          apply-log: ${{ inputs.working-directory }}/apply.log
+          plan-summary-json: plan_summary.json
+          out: apply_summary.md
+          ref: ${{ inputs.tfreport-ref }}
+          install-extras: ${{ inputs.install-extras }}
+          history: reports/apply-history.jsonl
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-apply-report
+          path: |
+            apply_summary.md
+            plan_summary.json
+            reports/apply-history.jsonl
+            ${{ inputs.working-directory }}/apply.log
+            ${{ inputs.working-directory }}/plan.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Append exception to history
+        if: ${{ inputs.record-history-on-failure && steps.apply.outcome == 'failure' }}
+        run: |
+          mkdir -p reports
+          {
+            echo ""
+            echo "## $(date -u +%Y-%m-%dT%H:%M:%SZ) — run ${GITHUB_RUN_ID}"
+            echo ""
+            echo "Workflow: ${GITHUB_WORKFLOW} (${GITHUB_REF})"
+            echo "Commit: ${GITHUB_SHA}"
+            echo ""
+            cat apply_summary.md
+          } >> reports/apply-history.md
+
+      - name: Commit history on failure
+        if: ${{ inputs.record-history-on-failure && steps.apply.outcome == 'failure' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/apply-history.md
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: record terraform apply exception (run ${GITHUB_RUN_ID})"
+            git push
+          fi
+
+      - name: Fail job if apply failed
+        if: ${{ steps.apply.outcome == 'failure' }}
+        run: |
+          echo "::error::terraform apply failed — see apply_summary.md artifact"
+          exit 1

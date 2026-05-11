@@ -1,0 +1,29 @@
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+
+# Local Terraform run outputs (consumers may have these too)
+*.tfplan
+tfplan
+plan.json
+plan.txt
+apply.log
+plan_summary.md
+plan_summary.json
+apply_summary.md
+
+# ALZ library cache (per Microsoft guidance)
+.alzlib/

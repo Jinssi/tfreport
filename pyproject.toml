@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tfreport"
+version = "0.2.0"
+description = "Advisory Terraform plan/apply report generator with optional LLM narrative (GitHub Models / Azure OpenAI)."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Aapo Latvala" }]
+keywords = ["terraform", "azure", "iac", "github-actions", "azure-devops", "report", "plan"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = []
+
+[project.optional-dependencies]
+azure = ["azure-identity>=1.15"]
+full = ["pyyaml>=6"]
+dev = ["pytest>=8", "ruff>=0.5", "pyyaml>=6"]
+
+[project.urls]
+Homepage = "https://github.com/Jinssi/terraformer"
+Issues = "https://github.com/Jinssi/terraformer/issues"
+Source = "https://github.com/Jinssi/terraformer"
+
+[project.scripts]
+tf-report-plan = "tfreport.plan:main"
+tf-report-apply = "tfreport.apply:main"
+tf-report-drift = "tfreport.drift:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tfreport"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/tfreport", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
