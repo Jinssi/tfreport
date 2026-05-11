@@ -135,3 +135,134 @@ def attr_diffs(
         else:
             out.append({"key": key, "before": _snippet(b, key), "after": _snippet(a, key)})
     return out
+
+
+# ---------------------------------------------------------------------------
+# List-element diff
+# ---------------------------------------------------------------------------
+
+
+def list_element_diff(before: Any, after: Any) -> dict[str, list[str]] | None:
+    """Return added / removed elements for two scalar lists.
+
+    Returns None when either side is not a list of hashable scalars, or when
+    nothing changed. The return shape is `{"added": [...], "removed": [...]}`
+    with elements rendered as short strings (truncated).
+    """
+    if not isinstance(before, list) or not isinstance(after, list):
+        return None
+    try:
+        b_set = list(before)
+        a_set = list(after)
+        # Sanity: only handle scalar elements (str / int / float / bool).
+        if any(isinstance(x, (dict, list)) for x in b_set + a_set):
+            return None
+        before_seq = [str(x) for x in b_set]
+        after_seq = [str(x) for x in a_set]
+    except TypeError:
+        return None
+    added = [x for x in after_seq if x not in before_seq]
+    removed = [x for x in before_seq if x not in after_seq]
+    if not added and not removed:
+        return None
+
+    def _trunc(items: list[str]) -> list[str]:
+        out: list[str] = []
+        for it in items[:10]:
+            t = it if len(it) <= _MAX_SNIPPET else it[: _MAX_SNIPPET - 1] + "…"
+            out.append(t)
+        if len(items) > 10:
+            out.append(f"… +{len(items) - 10} more")
+        return out
+
+    return {"added": _trunc(added), "removed": _trunc(removed)}
+
+
+# ---------------------------------------------------------------------------
+# Keyed nested-block diff (NSG rules, firewall rules, routes, …)
+# ---------------------------------------------------------------------------
+
+# Attribute names whose value is a list of objects keyed by `name` (or the
+# rule-ish key listed). Used to render rule-level diffs instead of dumping
+# the whole blob as JSON.
+KEYED_BLOCK_ATTRS: dict[str, str] = {
+    # NSG-ish
+    "security_rule": "name",
+    "rule": "name",
+    # Firewall policies
+    "network_rule": "name",
+    "application_rule": "name",
+    "nat_rule": "name",
+    "network_rule_collection": "name",
+    "application_rule_collection": "name",
+    "nat_rule_collection": "name",
+    # Route tables
+    "route": "name",
+    # Key Vault / Storage / general
+    "access_policy": "object_id",
+    "ip_rule": "ip_range",
+    "virtual_network_rule": "subnet_id",
+    # Identity blocks
+    "role_assignment": "principal_id",
+}
+
+
+def _key_of(block: dict[str, Any], key_field: str) -> str | None:
+    if not isinstance(block, dict):
+        return None
+    v = block.get(key_field)
+    if v is None:
+        return None
+    return str(v)
+
+
+def keyed_block_diff(
+    attr: str,
+    before: Any,
+    after: Any,
+) -> dict[str, list[dict[str, Any]]] | None:
+    """Diff a list-of-objects attribute (e.g. NSG `security_rule`) by key.
+
+    Returns `None` if the attribute is not a known keyed block or values are
+    malformed. Otherwise returns:
+
+        {
+          "added":   [{"key": ..., "block": {...}}],
+          "removed": [{"key": ..., "block": {...}}],
+          "changed": [{"key": ..., "attrs": [attr_diffs entries...]}],
+        }
+    """
+    key_field = KEYED_BLOCK_ATTRS.get(attr)
+    if key_field is None:
+        return None
+    if not isinstance(before, list) or not isinstance(after, list):
+        return None
+    b_by: dict[str, dict[str, Any]] = {}
+    a_by: dict[str, dict[str, Any]] = {}
+    for blk in before:
+        k = _key_of(blk, key_field)
+        if k is not None:
+            b_by[k] = blk
+    for blk in after:
+        k = _key_of(blk, key_field)
+        if k is not None:
+            a_by[k] = blk
+
+    if not b_by and not a_by:
+        return None
+
+    added_keys = sorted(set(a_by) - set(b_by))
+    removed_keys = sorted(set(b_by) - set(a_by))
+    common_keys = sorted(set(b_by) & set(a_by))
+
+    added = [{"key": k, "block": a_by[k]} for k in added_keys]
+    removed = [{"key": k, "block": b_by[k]} for k in removed_keys]
+    changed: list[dict[str, Any]] = []
+    for k in common_keys:
+        if b_by[k] == a_by[k]:
+            continue
+        changed.append({"key": k, "attrs": attr_diffs(b_by[k], a_by[k])})
+
+    if not added and not removed and not changed:
+        return None
+    return {"added": added, "removed": removed, "changed": changed}

@@ -4,6 +4,19 @@ All notable changes to **tfreport** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-05-11
+
+### Added
+
+- **List-element diff** — for changed list attributes whose elements are scalars (e.g. `address_space`, `address_prefixes`, `dns_servers`, `allowed_ip_ranges`), reports now render `added` / `removed` element bullets in *Resource details* instead of dumping the full list blob.
+- **Keyed nested-block diff** — for known list-of-objects attributes (NSG `security_rule`, firewall `network_rule` / `application_rule` / `nat_rule`, route-table `route`, Key Vault `access_policy`, storage `ip_rule` / `virtual_network_rule`, identity `role_assignment`), rules are matched by their natural key (`name`, `object_id`, `principal_id`, …) and *added / removed / changed* rules are listed individually. Changed rules show per-attribute before → after.
+- `tfreport.diff.list_element_diff()` and `tfreport.diff.keyed_block_diff()` helpers, plus `KEYED_BLOCK_ATTRS` registry for extension.
+
+### Changed
+
+- `ResourceChange` dataclass gains `list_diffs: dict[str, dict]` and `block_diffs: dict[str, dict]` (serialised to JSON summary).
+- `examples/sample-report.md` refreshed to include NSG rule-diff output.
+
 ## [0.2.1] - 2026-05-11
 
 ### Added

@@ -40,6 +40,8 @@ from .diff import (
     attr_diffs,
     changed_top_level_keys,
     is_tag_only,
+    keyed_block_diff,
+    list_element_diff,
     module_of,
     replace_paths,
 )
@@ -66,6 +68,8 @@ class ResourceChange:
     risks: list[dict[str, str]] = field(default_factory=list)
     changed_attrs: list[str] = field(default_factory=list)
     attr_diffs: list[dict[str, str]] = field(default_factory=list)
+    list_diffs: dict[str, dict[str, list[str]]] = field(default_factory=dict)
+    block_diffs: dict[str, dict[str, list[dict[str, Any]]]] = field(default_factory=dict)
     replace_paths: list[str] = field(default_factory=list)
     tag_only: bool = False
     ignored: bool = False
@@ -122,6 +126,20 @@ def parse_plan(plan: dict[str, Any], config: Config | None = None) -> PlanSummar
             change.get("before_sensitive"),
             change.get("after_sensitive"),
         )
+        # Compute list-element diffs and keyed-block diffs for each changed key.
+        list_diffs: dict[str, dict[str, list[str]]] = {}
+        block_diffs: dict[str, dict[str, list[dict[str, Any]]]] = {}
+        if isinstance(before, dict) and isinstance(after, dict):
+            for k in keys:
+                b_val = before.get(k)
+                a_val = after.get(k)
+                bd = keyed_block_diff(k, b_val, a_val)
+                if bd is not None:
+                    block_diffs[k] = bd
+                    continue
+                ld = list_element_diff(b_val, a_val)
+                if ld is not None:
+                    list_diffs[k] = ld
         rpaths = replace_paths(change)
         tag_only = action == ACTION_UPDATE and is_tag_only(keys)
         ignored = config.is_ignored(addr)
@@ -136,6 +154,8 @@ def parse_plan(plan: dict[str, Any], config: Config | None = None) -> PlanSummar
                 risks=risks,
                 changed_attrs=keys,
                 attr_diffs=diffs,
+                list_diffs=list_diffs,
+                block_diffs=block_diffs,
                 replace_paths=rpaths,
                 tag_only=tag_only,
                 ignored=ignored,
@@ -393,6 +413,45 @@ def render_markdown(
                         )
                     if len(c.attr_diffs) > 10:
                         lines.append(f"| _… +{len(c.attr_diffs) - 10} more_ | | |")
+                # List-element diffs (e.g. address_space, dns_servers, ip_rules)
+                for k, ld in c.list_diffs.items():
+                    lines.append("")
+                    lines.append(f"**List diff — `{k}`:**")
+                    if ld.get("added"):
+                        lines.append(
+                            "- added: "
+                            + ", ".join(f"`{x}`" for x in ld["added"])
+                        )
+                    if ld.get("removed"):
+                        lines.append(
+                            "- removed: "
+                            + ", ".join(f"`{x}`" for x in ld["removed"])
+                        )
+                # Keyed nested-block diffs (NSG rules, firewall rules, routes, …)
+                for k, bd in c.block_diffs.items():
+                    added = bd.get("added", [])
+                    removed = bd.get("removed", [])
+                    changed = bd.get("changed", [])
+                    if not (added or removed or changed):
+                        continue
+                    lines.append("")
+                    lines.append(f"**Rule diff — `{k}`:**")
+                    if added:
+                        names = ", ".join(f"`{e['key']}`" for e in added[:10])
+                        extra = f" (+{len(added) - 10} more)" if len(added) > 10 else ""
+                        lines.append(f"- added: {names}{extra}")
+                    if removed:
+                        names = ", ".join(f"`{e['key']}`" for e in removed[:10])
+                        extra = f" (+{len(removed) - 10} more)" if len(removed) > 10 else ""
+                        lines.append(f"- removed: {names}{extra}")
+                    for entry in changed[:5]:
+                        lines.append(f"- changed `{entry['key']}`:")
+                        for ad in (entry.get("attrs") or [])[:5]:
+                            lines.append(
+                                f"  - `{ad['key']}`: {ad['before']} → {ad['after']}"
+                            )
+                    if len(changed) > 5:
+                        lines.append(f"- _… +{len(changed) - 5} more changed rules_")
                 if c.risks:
                     lines.append(
                         "**Risk rules:** "

@@ -75,6 +75,102 @@ def test_attr_diffs_sensitive_masking():
     assert d[0]["before"] == "_(sensitive)_"
 
 
+def test_list_element_diff_added_removed():
+    out = diff_mod.list_element_diff(
+        ["10.0.0.0/16"], ["10.0.0.0/16", "10.1.0.0/16"]
+    )
+    assert out == {"added": ["10.1.0.0/16"], "removed": []}
+    out = diff_mod.list_element_diff(["a", "b", "c"], ["a", "c", "d"])
+    assert out == {"added": ["d"], "removed": ["b"]}
+
+
+def test_list_element_diff_skips_nonscalar():
+    # Lists of dicts should fall through to the keyed-block path, not list diff.
+    assert diff_mod.list_element_diff([{"x": 1}], [{"x": 2}]) is None
+    # Identical → None.
+    assert diff_mod.list_element_diff(["a"], ["a"]) is None
+    # Non-list → None.
+    assert diff_mod.list_element_diff("foo", "bar") is None
+
+
+def test_keyed_block_diff_nsg_rules():
+    before = [
+        {"name": "allow-ssh", "priority": 100, "destination_port_range": "22"},
+        {"name": "deny-rdp",  "priority": 200, "destination_port_range": "3389"},
+    ]
+    after = [
+        {"name": "allow-ssh", "priority": 110, "destination_port_range": "22"},  # changed
+        {"name": "allow-https", "priority": 300, "destination_port_range": "443"},  # added
+        # deny-rdp removed
+    ]
+    out = diff_mod.keyed_block_diff("security_rule", before, after)
+    assert out is not None
+    assert [e["key"] for e in out["added"]] == ["allow-https"]
+    assert [e["key"] for e in out["removed"]] == ["deny-rdp"]
+    assert [e["key"] for e in out["changed"]] == ["allow-ssh"]
+    # Inner attr diff
+    ssh_attrs = out["changed"][0]["attrs"]
+    keys = [a["key"] for a in ssh_attrs]
+    assert "priority" in keys
+
+
+def test_keyed_block_diff_returns_none_for_unknown_attr():
+    assert diff_mod.keyed_block_diff("not_a_known_block", [{"name": "x"}], [{"name": "y"}]) is None
+
+
+def test_render_includes_list_and_rule_diffs():
+    plan = {
+        "resource_changes": [
+            {
+                "address": "azurerm_network_security_group.nsg",
+                "type": "azurerm_network_security_group",
+                "name": "nsg",
+                "provider_name": "registry.terraform.io/hashicorp/azurerm",
+                "change": {
+                    "actions": ["update"],
+                    "before": {
+                        "name": "nsg",
+                        "security_rule": [
+                            {"name": "allow-ssh", "priority": 100, "destination_port_range": "22"},
+                            {"name": "deny-rdp",  "priority": 200, "destination_port_range": "3389"},
+                        ],
+                    },
+                    "after": {
+                        "name": "nsg",
+                        "security_rule": [
+                            {"name": "allow-ssh", "priority": 110, "destination_port_range": "22"},
+                            {"name": "allow-https", "priority": 300, "destination_port_range": "443"},
+                        ],
+                    },
+                },
+            },
+            {
+                "address": "azurerm_virtual_network.vnet",
+                "type": "azurerm_virtual_network",
+                "name": "vnet",
+                "provider_name": "registry.terraform.io/hashicorp/azurerm",
+                "change": {
+                    "actions": ["update"],
+                    "before": {"address_space": ["10.0.0.0/16"]},
+                    "after":  {"address_space": ["10.0.0.0/16", "10.1.0.0/16"]},
+                },
+            },
+        ]
+    }
+    cfg = Config()
+    summary = summarize_plan.parse_plan(plan, config=cfg)
+    md = summarize_plan.render_markdown(summary, config=cfg)
+    # List diff line for VNet
+    assert "List diff — `address_space`" in md
+    assert "10.1.0.0/16" in md
+    # Rule diff section for NSG
+    assert "Rule diff — `security_rule`" in md
+    assert "allow-https" in md  # added
+    assert "deny-rdp" in md     # removed
+    assert "allow-ssh" in md    # changed
+    assert "priority" in md     # inner attr change
+
+
 def test_config_ignore_globs():
     cfg = Config(ignore=["module.legacy.*", "azurerm_role_assignment.*"])
     assert cfg.is_ignored("module.legacy.azurerm_subnet.s")

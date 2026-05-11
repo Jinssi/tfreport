@@ -2,9 +2,9 @@
 
 ## AVM full report (baseline+cost)
 
-_Terraform 1.13.3 · tfreport 0.2.0 · 2026-05-11T10:14:21+00:00_
+_Terraform 1.13.3 · tfreport 0.2.1 · 2026-05-11T11:00:56+00:00_
 
-**5 resource change(s)**: 1 create, 2 update, 1 delete, 1 replace.
+**6 resource change(s)**: 1 create, 3 update, 1 delete, 1 replace.
 
 **Estimated cost change: +27.10 USD/mo** (Infracost; total 42.50/mo)
 
@@ -13,7 +13,7 @@ _Terraform 1.13.3 · tfreport 0.2.0 · 2026-05-11T10:14:21+00:00_
 | Metric | Count |
 | --- | ---: |
 | Create | 1 |
-| Update | 2 |
+| Update | 3 |
 | Delete | 1 |
 | Replace | 1 |
 | Read | 0 |
@@ -25,9 +25,9 @@ _Risks: 2 high, 0 medium, 2 low (advisory only)._
 
 _Baseline: `c:\temp\tfreport-test\baseline.json`_
 
-- **Stat delta**: create +1, update +1, delete +1, replace +1
+- **Stat delta**: create +1, update +2, delete +1, replace +1
 - **New HIGH-severity risks**: `module.example_hub.azurerm_log_analytics_workspace.legacy`, `module.test.module.foundry_ptn.azurerm_storage_account.data`
-- New resource changes: `module.example_hub.azurerm_log_analytics_workspace.legacy`, `module.test.azurerm_resource_group.this`, `module.test.module.avm_res_keyvault_vault.azurerm_key_vault.this`, `module.test.module.foundry_ptn.azurerm_storage_account.data`
+- New resource changes: `module.example_hub.azurerm_log_analytics_workspace.legacy`, `module.test.azurerm_resource_group.this`, `module.test.module.ai_lz_vnet.azurerm_network_security_group.app`, `module.test.module.avm_res_keyvault_vault.azurerm_key_vault.this`, `module.test.module.foundry_ptn.azurerm_storage_account.data`
 
 ## Cost impact
 
@@ -52,10 +52,11 @@ _Baseline: `c:\temp\tfreport-test\baseline.json`_
 | --- | --- | --- | --- | --- |
 | `+` | `module.test.azurerm_resource_group.this` | `azurerm_resource_group` |  | changed: `location`, `name`, `tags` |
 
-### module.test.module.ai_lz_vnet (1)
+### module.test.module.ai_lz_vnet (2)
 
 | Action | Resource | Type | Risk | Why |
 | --- | --- | --- | --- | --- |
+| `~` | `module.test.module.ai_lz_vnet.azurerm_network_security_group.app` | `azurerm_network_security_group` |  | changed: `security_rule` |
 | `~` | `module.test.module.ai_lz_vnet.azurerm_virtual_network.this` | `azurerm_virtual_network` |  | changed: `address_space` |
 
 ### module.test.module.foundry_ptn (1)
@@ -103,11 +104,29 @@ _Baseline: `c:\temp\tfreport-test\baseline.json`_
 | --- | --- | --- |
 | `address_space` | `["10.0.0.0/16"]` | `["10.0.0.0/16", "10.1.0.0/16"]` |
 
+**List diff — `address_space`:**
+- added: `10.1.0.0/16`
+
 </details>
 <details><summary>**HIGH** <code>module.example_hub.azurerm_log_analytics_workspace.legacy</code></summary>
 
 **Changed attributes:** `name`, `retention_in_days`
 **Risk rules:** _stateful-delete_ (high), _any-delete_ (low)
+
+</details>
+<details><summary>update <code>module.test.module.ai_lz_vnet.azurerm_network_security_group.app</code></summary>
+
+**Changed attributes:** `security_rule`
+
+| Attribute | Before | After |
+| --- | --- | --- |
+| `security_rule` | `[{"access": "Allow", "destination_address_prefix": "*", "destination_port_range…` | `[{"access": "Allow", "destination_address_prefix": "*", "destination_port_range…` |
+
+**Rule diff — `security_rule`:**
+- added: `allow-https`
+- removed: `deny-rdp`
+- changed `allow-ssh`:
+  - `priority`: `100` → `110`
 
 </details>
 
