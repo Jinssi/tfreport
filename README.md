@@ -121,9 +121,12 @@ tf-report-plan plan.json --out plan_summary.md
 - **Changes**: grouped by module, sorted replace → delete → update → create, with risk badge
 - **Tag-only updates** collapsed into a `<details>` block (configurable)
 - **Risks**: advisory list ordered by severity (high/medium/low)
-- **Resource details**: per-resource changed attributes, replace causes, fired rules
+- **Resource details**: per-resource changed attributes, replace causes, fired rules, and a per-attribute **before → after** table (sensitive values masked, long values truncated)
+- **Ignored by config** (collapsed): resources matched by `Config.ignore` globs are still listed but de-emphasised — full transparency
 - **Narrative** (optional): LLM-generated 2-paragraph human summary
 - **Provenance footer**: Terraform version, tfreport version, timestamp, CI source
+
+See [examples/sample-report.md](examples/sample-report.md) for a full example rendered against an AVM AI/ML Landing Zone plan with baseline + Infracost overlay.
 
 ## Risk classification
 

@@ -44,6 +44,37 @@ def test_replace_paths_rendering():
     assert diff_mod.replace_paths({}) == []
 
 
+def test_attr_diffs_basic_and_truncation():
+    diffs = diff_mod.attr_diffs(
+        {"name": "old", "size": 5, "tags": {"env": "dev"}},
+        {"name": "new", "size": 5, "tags": {"env": "prod"}, "added": True},
+    )
+    keys = [d["key"] for d in diffs]
+    assert "name" in keys and "tags" in keys and "added" in keys
+    assert "size" not in keys  # unchanged
+    name_diff = next(d for d in diffs if d["key"] == "name")
+    assert "old" in name_diff["before"] and "new" in name_diff["after"]
+    added_diff = next(d for d in diffs if d["key"] == "added")
+    assert "unset" in added_diff["before"]
+    # truncation
+    long_diffs = diff_mod.attr_diffs({"x": "a" * 200}, {"x": "b" * 200})
+    assert "…" in long_diffs[0]["before"] and "…" in long_diffs[0]["after"]
+
+
+def test_attr_diffs_sensitive_masking():
+    # By key name
+    d = diff_mod.attr_diffs({"admin_password": "oldpw"}, {"admin_password": "newpw"})
+    assert d[0]["before"] == "_(sensitive)_" and d[0]["after"] == "_(sensitive)_"
+    # By Terraform sensitive map
+    d = diff_mod.attr_diffs(
+        {"value": "before"},
+        {"value": "after"},
+        sensitive_before={"value": True},
+        sensitive_after={"value": True},
+    )
+    assert d[0]["before"] == "_(sensitive)_"
+
+
 def test_config_ignore_globs():
     cfg = Config(ignore=["module.legacy.*", "azurerm_role_assignment.*"])
     assert cfg.is_ignored("module.legacy.azurerm_subnet.s")

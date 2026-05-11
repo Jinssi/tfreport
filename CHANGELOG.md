@@ -4,6 +4,19 @@ All notable changes to **tfreport** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-05-11
+
+### Added
+
+- **Per-attribute before → after table** in the *Resource details* section for `update` and `replace` actions. Long values are truncated; secret-looking keys (`*password*`, `*secret*`, `*token*`, `*key*`, `*credential*`, `*connection_string*`, `*sas*`) and Terraform's own `before_sensitive` / `after_sensitive` flags are masked as `_(sensitive)_`.
+- `tfreport.diff.attr_diffs(before, after, sensitive_before, sensitive_after)` helper exposed alongside `changed_top_level_keys`.
+- `examples/sample-report.md` — full rendered output against an AVM AI/ML Landing Zone plan, committed for reference.
+
+### Changed
+
+- `ResourceChange` dataclass adds `attr_diffs: list[dict[str, str]]` (also serialised to JSON summary).
+- README "What the report contains" lists the new sections and links to the sample.
+
 ## [0.2.0] - 2026-05-11
 
 ### Added

@@ -37,6 +37,7 @@ from . import delta as delta_mod
 from . import provenance as prov
 from .config import Config, load as load_config
 from .diff import (
+    attr_diffs,
     changed_top_level_keys,
     is_tag_only,
     module_of,
@@ -64,6 +65,7 @@ class ResourceChange:
     module: str = "(root)"
     risks: list[dict[str, str]] = field(default_factory=list)
     changed_attrs: list[str] = field(default_factory=list)
+    attr_diffs: list[dict[str, str]] = field(default_factory=list)
     replace_paths: list[str] = field(default_factory=list)
     tag_only: bool = False
     ignored: bool = False
@@ -111,7 +113,15 @@ def parse_plan(plan: dict[str, Any], config: Config | None = None) -> PlanSummar
         addr = rc.get("address", "")
         rules = classify(rtype, action)
         risks = [{"name": r.name, "severity": r.severity, "reason": r.reason} for r in rules]
-        keys = changed_top_level_keys(change.get("before"), change.get("after"))
+        before = change.get("before")
+        after = change.get("after")
+        keys = changed_top_level_keys(before, after)
+        diffs = attr_diffs(
+            before,
+            after,
+            change.get("before_sensitive"),
+            change.get("after_sensitive"),
+        )
         rpaths = replace_paths(change)
         tag_only = action == ACTION_UPDATE and is_tag_only(keys)
         ignored = config.is_ignored(addr)
@@ -125,6 +135,7 @@ def parse_plan(plan: dict[str, Any], config: Config | None = None) -> PlanSummar
                 module=module_of(addr),
                 risks=risks,
                 changed_attrs=keys,
+                attr_diffs=diffs,
                 replace_paths=rpaths,
                 tag_only=tag_only,
                 ignored=ignored,
@@ -371,6 +382,17 @@ def render_markdown(
                         "**Changed attributes:** "
                         + ", ".join(f"`{k}`" for k in c.changed_attrs)
                     )
+                # Per-attribute before → after table (only meaningful for update/replace)
+                if c.action in (ACTION_UPDATE, ACTION_REPLACE) and c.attr_diffs:
+                    lines.append("")
+                    lines.append("| Attribute | Before | After |")
+                    lines.append("| --- | --- | --- |")
+                    for d in c.attr_diffs[:10]:
+                        lines.append(
+                            f"| `{d['key']}` | {d['before']} | {d['after']} |"
+                        )
+                    if len(c.attr_diffs) > 10:
+                        lines.append(f"| _… +{len(c.attr_diffs) - 10} more_ | | |")
                 if c.risks:
                     lines.append(
                         "**Risk rules:** "
