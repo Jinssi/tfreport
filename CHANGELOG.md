@@ -15,38 +15,38 @@ layout aimed at deployers reviewing real Azure changes.
   risk-severity Mermaid bar, and Unicode-bar impact heatmap.
 - **Module map** Mermaid flowchart in the executive summary, colored by max
   aggregated severity per module.
-- **Blast radius** analyzer (`graph.py`) — builds a dependency graph from
+- **Blast radius** analyzer (`graph.py`): builds a dependency graph from
   `configuration.root_module` references and `depends_on`; surfaces
   `blast_radius_score` per change and a `## Blast radius` section that lists
   destructive ops with the downstream resources they would impact.
-- **Policy body diff analyzer** (`policy.py`) — for `azurerm_policy_*` and
+- **Policy body diff analyzer** (`policy.py`): for `azurerm_policy_*` and
   `azuread_conditional_access_policy`: detects effect transitions
-  (`Audit → Deny`, etc.), parameter deltas, and scope changes. Effect
+  (`Audit` to `Deny`, etc.), parameter deltas, and scope changes. Effect
   tightening upgrades risk severity to **high**.
-- **Compliance checks** (`compliance.py`) — pluggable rule packs configured
+- **Compliance checks** (`compliance.py`): pluggable rule packs configured
   in `.tfreport.json` under `compliance:` (`required_tags`, `naming`,
   `allowed_regions`, `no_public_network`, `encryption_required`). Renders a
   `## Compliance checks` section with a pass/fail score.
-- **Cost visualization** — `## Cost impact` now includes a Mermaid
+- **Cost visualization**: `## Cost impact` now includes a Mermaid
   xychart-beta bar of top monthly deltas alongside the existing table.
-- **History & trend** (`history.py` + `--history PATH`) — appends a compact
+- **History & trend** (`history.py` + `--history PATH`): appends a compact
   JSONL snapshot per run and renders `## Trend (last N runs)` with Unicode
   sparkbars for change-count, risks, cost delta, and compliance score.
-- **Apply dashboard** + **Apply gantt** — `apply.py` now parses
+- **Apply dashboard** + **Apply gantt**: `apply.py` now parses
   Terraform-style durations from log lines and renders an apply dashboard
   badge row, a slowest-resources table, and a Mermaid `gantt` of the top-20
   longest operations.
 - **Multi-format exporters** (`exporters/`):
-  - `--html-out` — self-contained HTML report with inline CSS and SVG bars.
-  - `--sarif-out` — SARIF 2.1.0 for GitHub Code Scanning, including risks
+  - `--html-out`: self-contained HTML report with inline CSS and SVG bars.
+  - `--sarif-out`: SARIF 2.1.0 for GitHub Code Scanning, including risks
     and compliance findings.
-  - `--teams-out` — Microsoft Teams Adaptive Card v1.4 envelope.
-  - `--slack-out` — Slack Block Kit payload.
+  - `--teams-out`: Microsoft Teams Adaptive Card v1.4 envelope.
+  - `--slack-out`: Slack Block Kit payload.
   - `--report-link` to embed a URL into Teams/Slack messages.
-- **Routing** (`routing.py`) — `.tfreport.json → routing.rules` maps changes
+- **Routing** (`routing.py`): `.tfreport.json` `routing.rules` maps changes
   to suggested reviewers via address or resource-type globs. Rendered as a
   `## Suggested reviewers` table.
-- **Rollback playbook** (`rollback.py`) — for each destructive change on a
+- **Rollback playbook** (`rollback.py`): for each destructive change on a
   stateful resource (storage, SQL, PostgreSQL, Cosmos, Key Vault, VM, AKS,
   etc.) emits per-resource **Pre-checks** and **Rollback steps**.
 
@@ -55,10 +55,10 @@ layout aimed at deployers reviewing real Azure changes.
 - `ResourceChange` gained `blast_radius_score`, `downstream`, and
   `after_state` fields. `PlanSummary` gained `policy_changes` and
   `compliance` fields exposed via `to_dict()`.
-- Plan report section order is now: Dashboard → Executive summary (with
-  Module map) → Blast radius → Policy changes → Compliance checks →
-  Trend → Stats → Compared to baseline → Cost impact → Changes → Risks →
-  Suggested reviewers → Rollback playbook → Resource details → Narrative.
+- Plan report section order is now: Dashboard, Executive summary (with
+  Module map), Blast radius, Policy changes, Compliance checks,
+  Trend, Stats, Compared to baseline, Cost impact, Changes, Risks,
+  Suggested reviewers, Rollback playbook, Resource details, Narrative.
 
 ### Notes
 

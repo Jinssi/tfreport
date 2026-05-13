@@ -96,7 +96,7 @@ def _normalize_ref(ref: str, module_prefix: str) -> str | None:
     if first in {"var", "local", "each", "count", "self", "path", "data", "terraform"}:
         return None
     if first == "module":
-        # module.<name>.<output> — we can only assert dependency on the module,
+        # module.<name>.<output>; we can only assert dependency on the module,
         # not a specific resource. Skip.
         return None
     if len(parts) < 2:

@@ -63,7 +63,7 @@ def test_no_blast_radius_section_when_no_destructive_with_dependents():
     plan = _load("mixed.json")
     summary = summarize_plan.parse_plan(plan)
     md = summarize_plan.render_markdown(summary)
-    # mixed.json has no configuration block, so nothing downstream — section absent.
+    # mixed.json has no configuration block, so nothing downstream; section absent.
     assert "## Blast radius" not in md
 
 

@@ -68,6 +68,6 @@ def render_section(suggestions: Mapping[str, list[str]]) -> list[str]:
     for reviewer, addrs in sorted(suggestions.items(), key=lambda kv: -len(kv[1])):
         sample = ", ".join(f"`{a}`" for a in addrs[:3])
         more = f" _(+{len(addrs) - 3} more)_" if len(addrs) > 3 else ""
-        lines.append(f"| {reviewer} | {len(addrs)} — {sample}{more} |")
+        lines.append(f"| {reviewer} | {len(addrs)} ({sample}{more}) |")
     lines.append("")
     return lines

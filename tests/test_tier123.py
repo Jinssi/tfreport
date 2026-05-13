@@ -87,9 +87,9 @@ def test_list_element_diff_added_removed():
 def test_list_element_diff_skips_nonscalar():
     # Lists of dicts should fall through to the keyed-block path, not list diff.
     assert diff_mod.list_element_diff([{"x": 1}], [{"x": 2}]) is None
-    # Identical → None.
+    # Identical inputs return None.
     assert diff_mod.list_element_diff(["a"], ["a"]) is None
-    # Non-list → None.
+    # Non-list inputs return None.
     assert diff_mod.list_element_diff("foo", "bar") is None
 
 

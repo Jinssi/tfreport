@@ -9,7 +9,7 @@ a structured diff that surfaces governance-relevant changes:
 * Initiative member add/remove.
 * Exemption changes.
 
-The module intentionally avoids any Azure SDK calls — it works purely from
+The module intentionally avoids any Azure SDK calls; it works purely from
 the plan JSON. Resources that are not policy-related return None so callers
 can skip them cheaply.
 """

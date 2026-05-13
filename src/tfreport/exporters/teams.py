@@ -55,7 +55,7 @@ def render(summary: Mapping[str, Any], *, title: str = "Terraform Plan Report", 
                 {
                     "type": "TextBlock",
                     "wrap": True,
-                    "text": f"• **{r.get('rule_id', '')}** — `{r.get('address', '')}`: {r.get('message', '')}",
+                    "text": f"• **{r.get('rule_id', '')}**: `{r.get('address', '')}`: {r.get('message', '')}",
                 }
             )
 

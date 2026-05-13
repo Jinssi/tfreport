@@ -34,7 +34,7 @@ from collections.abc import Mapping
 from typing import Any
 
 # Resource types that we expect to carry tags. This list is short on purpose
-# — checks are advisory and we accept false negatives over false positives.
+# Checks are advisory and we accept false negatives over false positives.
 _TAGGABLE_TYPES = (
     "azurerm_*",
 )
@@ -249,7 +249,7 @@ def render_section(report: Mapping[str, Any]) -> list[str]:
         pct = int(round(score * 100))
         lines.append(
             f"_Score: **{pct}%** · {report.get('failed', 0)} finding(s) across {report.get('checked', 0)} change(s) · "
-            f"rules: {', '.join(report.get('rules_enabled') or []) or '—'}._"
+            f"rules: {', '.join(report.get('rules_enabled') or []) or '-'}._"
         )
         lines.append("")
     if not findings:

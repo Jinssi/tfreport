@@ -132,7 +132,7 @@ def render(summary: Mapping[str, Any], *, title: str = "Terraform Plan Report") 
             tight = "🟥" if p.get("effect_tightening") else ""
             parts.append(
                 f"<tr><td><code>{_esc(p.get('address', ''))}</code></td>"
-                f"<td>{_esc(p.get('effect_before') or '—')} → {_esc(p.get('effect_after') or '—')}</td>"
+                f"<td>{_esc(p.get('effect_before') or '-')} &rarr; {_esc(p.get('effect_after') or '-')}</td>"
                 f"<td>{tight}</td></tr>"
             )
         parts.append("</tbody></table>")

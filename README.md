@@ -1,7 +1,6 @@
 # tfreport
 
 [![CI](https://github.com/Jinssi/tfreport/actions/workflows/ci.yml/badge.svg)](https://github.com/Jinssi/tfreport/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/tfreport.svg)](https://pypi.org/project/tfreport/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 A comprehensive Terraform plan, apply, and drift report generator. It turns `terraform show -json` and `terraform apply` output into a visualization-rich Markdown report (dashboards, dependency-graph blast radius, policy-body diffs, compliance checks, cost charts, run-to-run trends, rollback playbooks) and can also emit HTML, SARIF, Microsoft Teams, and Slack payloads. Reports are advisory by design and never fail your build.
@@ -13,8 +12,7 @@ Designed for Azure / AVM / ALZ environments but works on any provider.
 The report is plain Markdown so it renders inline in PRs, MR comments, and PR/MR job summaries. Every chart is either a Mermaid diagram, a Unicode sparkbar, or an emoji badge, so there are no images to fetch and nothing to break in offline runners. Below is a tiny live preview that GitHub renders inside this README:
 
 ```mermaid
-pie showData
-    title Action mix (sample plan)
+pie title Action mix (sample plan)
     "create" : 12
     "update" : 7
     "delete" : 2
@@ -33,6 +31,34 @@ For a full report rendered against a real fixture, see [examples/sample-report.m
 
 All three call the same engine. CLI flags are the source of truth; the composite action and reusable workflow expose a curated subset (see [Inputs and feature parity](#inputs-and-feature-parity) below).
 
+## LLM narrative is optional and uses your own credentials
+
+tfreport can append a short reviewer narrative to the report. It is **off by default**, opt-in via `--ai`, and every credential is read from the *caller's* environment. Nothing in this package or action routes traffic to the maintainer.
+
+| Backend (`--ai-backend`) | Auth, read from your environment | Notes |
+| --- | --- | --- |
+| `github_models` (default) | `GITHUB_TOKEN` with `models: read` permission | In GHA this is your workflow's own `${{ github.token }}`. Billed to your repo/org. No extra secrets to configure. |
+| `azure_openai` | `AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_DEPLOYMENT`, plus either `AZURE_OPENAI_API_KEY` or `DefaultAzureCredential` (OIDC). `pip install tfreport[azure]`. | Points at *your* AOAI deployment. |
+| `none` | nothing | Disables the section. Equivalent to omitting `--ai`. |
+
+The call is made over plain `urllib`; there are no SDK telemetry hooks. Only the deterministic `PlanSummary` dict (truncated to 12 KB) is sent to the model, never the raw `terraform show -json` output. Sensitive attributes are already masked at the summary stage.
+
+Typical GHA usage:
+
+```yaml
+permissions:
+  contents: read
+  models: read           # required for github_models
+  pull-requests: write
+steps:
+  - uses: Jinssi/tfreport@v1
+    with:
+      mode: plan
+      plan-json: plan.json
+      ai: "true"           # off by default
+      ai-backend: github_models
+```
+
 ## Quickstart, local
 
 ```bash
@@ -42,7 +68,7 @@ terraform show -json tfplan > plan.json
 tf-report-plan plan.json --out plan_summary.md --json-out plan_summary.json
 ```
 
-Add `--ai` for an LLM reviewer narrative section (`LLM_BACKEND=github_models|azure_openai|none`).
+Add `--ai` for the optional LLM reviewer narrative (see [LLM narrative is optional and uses your own credentials](#llm-narrative-is-optional-and-uses-your-own-credentials)). It is off unless you pass the flag.
 
 For apply runs:
 
@@ -205,14 +231,6 @@ Rules live in [src/tfreport/risk_rules.py](src/tfreport/risk_rules.py):
 Compliance findings ([src/tfreport/compliance.py](src/tfreport/compliance.py)) follow the severity declared by each rule (default `medium`).
 
 Advisory only. Customise by editing the `RULES` tuple and adding a fixture under `tests/fixtures/`.
-
-## LLM narrative (optional)
-
-Sends only the deterministic summary JSON, never raw plan content, to:
-
-- **GitHub Models** (default in GHA). Uses the workflow `GITHUB_TOKEN` with `models: read` permission. No extra secrets.
-- **Azure OpenAI**. Set `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_DEPLOYMENT`. Auth via `AZURE_OPENAI_API_KEY` or `DefaultAzureCredential` (OIDC). `pip install tfreport[azure]`.
-- **none**. Disable.
 
 ## Layout
 

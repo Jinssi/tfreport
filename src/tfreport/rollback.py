@@ -4,7 +4,7 @@ For each destroyed / replaced stateful resource, emit a short recipe of
 pre-checks (backup verification, snapshot, export) and rollback steps
 (re-apply previous module version, restore from backup, etc.).
 
-This is intentionally heuristic — it surfaces *what to think about*
+This is intentionally heuristic; it surfaces *what to think about*
 before approval, not a guaranteed automated rollback.
 """
 
