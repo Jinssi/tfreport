@@ -93,7 +93,7 @@ def render(summary: Mapping[str, Any], *, title: str = "Terraform Plan Report") 
         ("replace", float(stats.get("replace", 0) or 0)),
     ]
     parts.append("<h2>Action mix</h2>")
-    parts.append(_bar_chart([(l, v) for l, v in action_rows if v > 0]))
+    parts.append(_bar_chart([(label, v) for label, v in action_rows if v > 0]))
 
     # Risks.
     if risks:

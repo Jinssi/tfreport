@@ -145,7 +145,7 @@ def mermaid_module_tree(
     if not modules:
         return []
     items = list(modules)[:MAX_FLOW_NODES]
-    body = ["flowchart TD", f'    classDef high fill:#ffb3b3,stroke:#b30000,color:#000;',
+    body = ["flowchart TD", '    classDef high fill:#ffb3b3,stroke:#b30000,color:#000;',
             "    classDef med fill:#ffd9a3,stroke:#cc6600,color:#000;",
             "    classDef low fill:#d4edda,stroke:#155724,color:#000;"]
     # Title via a comment node.

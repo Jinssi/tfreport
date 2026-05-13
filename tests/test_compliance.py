@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tfreport import compliance
 from tfreport import plan as summarize_plan
 from tfreport.config import Config
 
