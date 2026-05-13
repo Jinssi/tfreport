@@ -1,0 +1,75 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "resource_changes": [
+    {
+      "address": "azurerm_virtual_network.hub",
+      "type": "azurerm_virtual_network",
+      "name": "hub",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["delete", "create"],
+        "replace_paths": [["address_space"]],
+        "before": {"name": "hub", "address_space": ["10.0.0.0/16"]},
+        "after": {"name": "hub", "address_space": ["10.1.0.0/16"]}
+      }
+    },
+    {
+      "address": "azurerm_subnet.app",
+      "type": "azurerm_subnet",
+      "name": "app",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["update"],
+        "before": {"name": "app"},
+        "after": {"name": "app"}
+      }
+    },
+    {
+      "address": "azurerm_network_interface.web",
+      "type": "azurerm_network_interface",
+      "name": "web",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["update"],
+        "before": {"name": "web"},
+        "after": {"name": "web"}
+      }
+    }
+  ],
+  "configuration": {
+    "root_module": {
+      "resources": [
+        {
+          "address": "azurerm_virtual_network.hub",
+          "mode": "managed",
+          "type": "azurerm_virtual_network",
+          "name": "hub",
+          "expressions": {}
+        },
+        {
+          "address": "azurerm_subnet.app",
+          "mode": "managed",
+          "type": "azurerm_subnet",
+          "name": "app",
+          "expressions": {
+            "virtual_network_name": {
+              "references": ["azurerm_virtual_network.hub.name", "azurerm_virtual_network.hub"]
+            }
+          }
+        },
+        {
+          "address": "azurerm_network_interface.web",
+          "mode": "managed",
+          "type": "azurerm_network_interface",
+          "name": "web",
+          "expressions": {
+            "subnet_id": {
+              "references": ["azurerm_subnet.app.id", "azurerm_subnet.app"]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

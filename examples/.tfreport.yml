@@ -1,0 +1,21 @@
+# Optional configuration for tfreport (auto-discovered alongside your Terraform code).
+# Switch the file extension to `.tfreport.json` if you do not want PyYAML.
+
+# Glob patterns matched against resource address. Matched changes are kept in a
+# collapsed "Ignored by config" section and excluded from risk counts.
+ignore: []
+#  - "module.legacy.*"
+#  - "azurerm_role_assignment.*read*"
+
+# Group the changes table by module path. Set false for one flat table.
+group_by_module: true
+
+# Move resources whose only diff is `tags`/`tags_all` into a collapsed section.
+demote_tag_only: true
+
+# Render per-resource <details> blocks (changed attributes, replace_paths, risk hits).
+diff_details: true
+
+# Default for the --ai flag (CLI overrides). Keep false unless you trust the workflow's
+# `models: read` permission and your model choice.
+ai: false

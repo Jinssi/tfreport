@@ -1,0 +1,20 @@
+name: Bug report
+description: Something isn't working
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened
+      description: Include the command, expected vs actual, and a minimal plan JSON if possible.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: tfreport version
+      description: Output of `pip show tfreport` or the action `ref` you used.
+  - type: input
+    attributes:
+      label: Terraform version
+  - type: input
+    attributes:
+      label: Python version

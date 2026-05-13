@@ -1,0 +1,80 @@
+# Azure DevOps pipeline using tfreport from PyPI.
+# Mirrors the GitHub Actions reusable workflow but runs anywhere.
+
+trigger:
+  branches:
+    include: [main]
+
+pr:
+  branches:
+    include: [main]
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  workingDirectory: infra
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.11"
+
+  - script: pip install tfreport
+    displayName: Install tfreport
+
+  - task: TerraformInstaller@1
+    inputs:
+      terraformVersion: latest
+
+  # OIDC to Azure (preferred). Configure the service connection with workload identity federation.
+  - task: AzureCLI@2
+    displayName: Azure login (OIDC)
+    inputs:
+      azureSubscription: $(azureServiceConnection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        echo "Authenticated as $(az account show --query user.name -o tsv)"
+
+  - script: terraform init -input=false -no-color
+    workingDirectory: $(workingDirectory)
+    displayName: Terraform init
+
+  - script: |
+      set -o pipefail
+      terraform plan -input=false -no-color -out=tfplan | tee plan.txt
+      terraform show -json tfplan > plan.json
+    workingDirectory: $(workingDirectory)
+    displayName: Terraform plan
+
+  # Optional: enable AI narrative via Azure OpenAI (no GitHub Models in ADO).
+  - script: |
+      tf-report-plan "$(workingDirectory)/plan.json" \
+        --out plan_summary.md \
+        --json-out plan_summary.json
+    displayName: Generate plan report
+    env:
+      LLM_BACKEND: none
+      # To enable Azure OpenAI:
+      # LLM_BACKEND: azure_openai
+      # AZURE_OPENAI_ENDPOINT: $(AZURE_OPENAI_ENDPOINT)
+      # AZURE_OPENAI_DEPLOYMENT: $(AZURE_OPENAI_DEPLOYMENT)
+      # AZURE_OPENAI_API_KEY:    $(AZURE_OPENAI_API_KEY)   # or use DefaultAzureCredential
+
+  - publish: plan_summary.md
+    artifact: terraform-plan-report
+
+  # Post as PR comment via REST (requires Build Service to have "Contribute to pull requests").
+  - script: |
+      if [ "$BUILD_REASON" = "PullRequest" ]; then
+        BODY=$(jq -Rs . < plan_summary.md)
+        curl -sS -X POST \
+          -H "Authorization: Bearer $SYSTEM_ACCESSTOKEN" \
+          -H "Content-Type: application/json" \
+          -d "{\"comments\":[{\"parentCommentId\":0,\"content\":$BODY,\"commentType\":1}],\"status\":1}" \
+          "$SYSTEM_TEAMFOUNDATIONCOLLECTIONURI$SYSTEM_TEAMPROJECT/_apis/git/repositories/$BUILD_REPOSITORY_ID/pullRequests/$SYSTEM_PULLREQUEST_PULLREQUESTID/threads?api-version=7.1"
+      fi
+    displayName: Post PR comment
+    env:
+      SYSTEM_ACCESSTOKEN: $(System.AccessToken)

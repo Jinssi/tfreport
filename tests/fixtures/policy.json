@@ -1,0 +1,36 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "resource_changes": [
+    {
+      "address": "azurerm_policy_definition.deny_public_ip",
+      "type": "azurerm_policy_definition",
+      "name": "deny_public_ip",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "name": "deny-public-ip",
+          "parameters": "{\"effect\":{\"type\":\"string\",\"defaultValue\":\"Audit\"}}",
+          "policy_rule": "{\"if\":{\"field\":\"type\",\"equals\":\"Microsoft.Network/publicIPAddresses\"},\"then\":{\"effect\":\"Audit\"}}"
+        },
+        "after": {
+          "name": "deny-public-ip",
+          "parameters": "{\"effect\":{\"type\":\"string\",\"defaultValue\":\"Deny\"},\"exemptedTags\":{\"type\":\"array\",\"defaultValue\":[]}}",
+          "policy_rule": "{\"if\":{\"field\":\"type\",\"equals\":\"Microsoft.Network/publicIPAddresses\"},\"then\":{\"effect\":\"Deny\"}}"
+        }
+      }
+    },
+    {
+      "address": "azurerm_resource_group_policy_assignment.region",
+      "type": "azurerm_resource_group_policy_assignment",
+      "name": "region",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": ["update"],
+        "before": {"scope": "/subscriptions/abc/resourceGroups/rg-dev", "enforce": false},
+        "after": {"scope": "/subscriptions/abc/resourceGroups/rg-prod", "enforce": true}
+      }
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+name: Terraform Plan/Apply Report
+description: >
+  Generate an advisory Markdown report from a Terraform plan or apply log,
+  with optional LLM narrative via GitHub Models.
+author: Aapo Latvala
+branding:
+  icon: file-text
+  color: purple
+
+inputs:
+  mode:
+    description: "plan | apply | drift"
+    required: true
+    default: plan
+  plan-json:
+    description: "Path to plan JSON (output of `terraform show -json tfplan`). Required when mode=plan or mode=drift."
+    required: false
+  apply-log:
+    description: "Path to captured apply stdout/stderr. Required when mode=apply."
+    required: false
+  plan-summary-json:
+    description: "Optional plan_summary.json from a previous plan-mode run; enriches apply report."
+    required: false
+  out:
+    description: "Output Markdown path."
+    required: false
+    default: report_summary.md
+  json-out:
+    description: "Optional path for structured JSON summary (plan/drift modes)."
+    required: false
+    default: ""
+  config:
+    description: "Path to a .tfreport config file. If empty, auto-discovered."
+    required: false
+    default: ""
+  baseline:
+    description: "Optional previous plan_summary.json for run-to-run delta (plan mode)."
+    required: false
+    default: ""
+  cost-json:
+    description: "Optional Infracost breakdown JSON (`infracost breakdown --format json`)."
+    required: false
+    default: ""
+  heading:
+    description: "Optional H2 heading prepended to the report (e.g. stack name)."
+    required: false
+    default: ""
+  history:
+    description: "Append a JSONL ledger entry to this path (apply/drift modes)."
+    required: false
+    default: ""
+  ai:
+    description: "Add LLM narrative section (plan mode only). 'true' or 'false'."
+    required: false
+    default: "false"
+  ai-backend:
+    description: "LLM backend: github_models | azure_openai | none."
+    required: false
+    default: github_models
+  python-version:
+    description: "Python version for the action runtime."
+    required: false
+    default: "3.11"
+  ref:
+    description: "tfreport git ref to install (tag, branch, or SHA). Use a version tag in production."
+    required: false
+    default: "main"
+  install-extras:
+    description: "pip extras to install, e.g. 'full' for YAML config support."
+    required: false
+    default: ""
+
+outputs:
+  report-path:
+    description: "Path to the generated Markdown report."
+    value: ${{ inputs.out }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install tfreport
+      shell: bash
+      run: |
+        SPEC="git+https://github.com/${{ github.action_repository || 'Jinssi/tfreport' }}@${{ inputs.ref }}"
+        if [ -n "${{ inputs.install-extras }}" ]; then
+          python -m pip install --quiet "tfreport[${{ inputs.install-extras }}] @ ${SPEC}"
+        else
+          python -m pip install --quiet "${SPEC}"
+        fi
+
+    - name: Run plan summary
+      if: ${{ inputs.mode == 'plan' }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        LLM_BACKEND: ${{ inputs.ai-backend }}
+      run: |
+        if [ -z "${{ inputs.plan-json }}" ]; then
+          echo "::error::plan-json input is required when mode=plan"
+          exit 2
+        fi
+        ARGS=( "${{ inputs.plan-json }}" --out "${{ inputs.out }}" )
+        if [ -n "${{ inputs.json-out }}" ]; then
+          ARGS+=( --json-out "${{ inputs.json-out }}" )
+        fi
+        if [ -n "${{ inputs.config }}" ]; then
+          ARGS+=( --config "${{ inputs.config }}" )
+        fi
+        if [ -n "${{ inputs.baseline }}" ]; then
+          ARGS+=( --baseline "${{ inputs.baseline }}" )
+        fi
+        if [ -n "${{ inputs.cost-json }}" ]; then
+          ARGS+=( --cost-json "${{ inputs.cost-json }}" )
+        fi
+        if [ -n "${{ inputs.heading }}" ]; then
+          ARGS+=( --heading "${{ inputs.heading }}" )
+        fi
+        if [ "${{ inputs.ai }}" = "true" ] && [ "${{ inputs.ai-backend }}" != "none" ]; then
+          ARGS+=( --ai --ai-backend "${{ inputs.ai-backend }}" )
+        fi
+        tf-report-plan "${ARGS[@]}"
+
+    - name: Run drift summary
+      if: ${{ inputs.mode == 'drift' }}
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.plan-json }}" ]; then
+          echo "::error::plan-json input is required when mode=drift"
+          exit 2
+        fi
+        ARGS=( "${{ inputs.plan-json }}" --out "${{ inputs.out }}" )
+        if [ -n "${{ inputs.json-out }}" ]; then
+          ARGS+=( --json-out "${{ inputs.json-out }}" )
+        fi
+        if [ -n "${{ inputs.config }}" ]; then
+          ARGS+=( --config "${{ inputs.config }}" )
+        fi
+        if [ -n "${{ inputs.history }}" ]; then
+          ARGS+=( --history "${{ inputs.history }}" )
+        fi
+        tf-report-drift "${ARGS[@]}"
+
+    - name: Run apply summary
+      if: ${{ inputs.mode == 'apply' }}
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.apply-log }}" ]; then
+          echo "::error::apply-log input is required when mode=apply"
+          exit 2
+        fi
+        ARGS=( --log "${{ inputs.apply-log }}" --out "${{ inputs.out }}" )
+        if [ -n "${{ inputs.plan-summary-json }}" ]; then
+          ARGS+=( --plan-summary-json "${{ inputs.plan-summary-json }}" )
+        fi
+        if [ -n "${{ inputs.history }}" ]; then
+          ARGS+=( --history "${{ inputs.history }}" )
+        fi
+        tf-report-apply "${ARGS[@]}"
+    - name: Append to job summary
+      if: always()
+      shell: bash
+      run: |
+        if [ -f "${{ inputs.out }}" ]; then
+          cat "${{ inputs.out }}" >> "$GITHUB_STEP_SUMMARY"
+        fi

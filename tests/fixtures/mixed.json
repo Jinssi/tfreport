@@ -1,0 +1,41 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "resource_changes": [
+    {
+      "address": "azurerm_resource_group.this",
+      "type": "azurerm_resource_group",
+      "name": "this",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": { "actions": ["create"] }
+    },
+    {
+      "address": "azurerm_virtual_network.hub",
+      "type": "azurerm_virtual_network",
+      "name": "hub",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": { "actions": ["update"] }
+    },
+    {
+      "address": "azurerm_storage_account.data",
+      "type": "azurerm_storage_account",
+      "name": "data",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": { "actions": ["delete", "create"] }
+    },
+    {
+      "address": "azurerm_role_assignment.reader",
+      "type": "azurerm_role_assignment",
+      "name": "reader",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": { "actions": ["delete"] }
+    },
+    {
+      "address": "azurerm_subnet.legacy",
+      "type": "azurerm_subnet",
+      "name": "legacy",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": { "actions": ["delete"] }
+    }
+  ]
+}
