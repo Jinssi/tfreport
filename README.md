@@ -182,20 +182,17 @@ See [examples/.tfreport.yml](examples/.tfreport.yml) for the YAML form.
 
 ## Inputs and feature parity
 
-Everything is reachable from the CLI. The composite action wires the most common flags. The new exporter and history flags are CLI-only today and will be added to the action in a follow-up.
+Every CLI flag is also reachable from the composite action.
 
 | Capability | CLI | Composite action (`Jinssi/tfreport@v1`) |
 | --- | --- | --- |
 | Plan / apply / drift modes | yes | yes (`mode: plan|apply|drift`) |
 | `--out`, `--json-out`, `--config`, `--baseline`, `--cost-json`, `--heading` | yes | yes |
 | `--ai`, `--ai-backend` | yes | yes (`ai: "true"`, `ai-backend: ...`) |
-| `--history` (apply / drift) | yes | yes |
-| `--history` (plan trend) | yes | not yet wired |
-| `--html-out` | yes | not yet wired |
-| `--sarif-out` | yes | not yet wired |
-| `--teams-out`, `--slack-out`, `--report-link` | yes | not yet wired |
-
-Until the action exposes them, you can call `tf-report-plan` directly in a `run:` step after the action installs the package, or run `pip install tfreport` and invoke the CLI yourself.
+| `--history` (plan / apply / drift) | yes | yes (`history:`) |
+| `--html-out` | yes | yes (`html-out:`) |
+| `--sarif-out` | yes | yes (`sarif-out:`) |
+| `--teams-out`, `--slack-out`, `--report-link` | yes | yes (`teams-out:`, `slack-out:`, `report-link:`) |
 
 ## Risk classification
 

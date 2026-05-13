@@ -46,7 +46,27 @@ inputs:
     required: false
     default: ""
   history:
-    description: "Append a JSONL ledger entry to this path (apply/drift modes)."
+    description: "Append a JSONL ledger entry to this path (plan/apply/drift modes). Enables the Trend section."
+    required: false
+    default: ""
+  html-out:
+    description: "Optional path for a self-contained HTML report (plan mode)."
+    required: false
+    default: ""
+  sarif-out:
+    description: "Optional path for a SARIF 2.1.0 file (plan mode); uploadable to GitHub Code Scanning."
+    required: false
+    default: ""
+  teams-out:
+    description: "Optional path for a Microsoft Teams Adaptive Card payload (plan mode)."
+    required: false
+    default: ""
+  slack-out:
+    description: "Optional path for a Slack Block Kit payload (plan mode)."
+    required: false
+    default: ""
+  report-link:
+    description: "Optional URL embedded as an 'Open report' button in Teams/Slack payloads."
     required: false
     default: ""
   ai:
@@ -119,6 +139,24 @@ runs:
         fi
         if [ -n "${{ inputs.heading }}" ]; then
           ARGS+=( --heading "${{ inputs.heading }}" )
+        fi
+        if [ -n "${{ inputs.history }}" ]; then
+          ARGS+=( --history "${{ inputs.history }}" )
+        fi
+        if [ -n "${{ inputs.html-out }}" ]; then
+          ARGS+=( --html-out "${{ inputs.html-out }}" )
+        fi
+        if [ -n "${{ inputs.sarif-out }}" ]; then
+          ARGS+=( --sarif-out "${{ inputs.sarif-out }}" )
+        fi
+        if [ -n "${{ inputs.teams-out }}" ]; then
+          ARGS+=( --teams-out "${{ inputs.teams-out }}" )
+        fi
+        if [ -n "${{ inputs.slack-out }}" ]; then
+          ARGS+=( --slack-out "${{ inputs.slack-out }}" )
+        fi
+        if [ -n "${{ inputs.report-link }}" ]; then
+          ARGS+=( --report-link "${{ inputs.report-link }}" )
         fi
         if [ "${{ inputs.ai }}" = "true" ] && [ "${{ inputs.ai-backend }}" != "none" ]; then
           ARGS+=( --ai --ai-backend "${{ inputs.ai-backend }}" )
